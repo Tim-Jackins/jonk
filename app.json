@@ -1,0 +1,23 @@
+{
+    "name": "JONK",
+    "description": "Discord bot for music",
+    "image": "heroku/python",
+    "repository": "",
+    "keywords": ["python", "discord"],
+    "env": {
+        "DISCORD_TOKEN": {
+            "description": "Discord token."
+        },
+        "MAX_QUEUE_SIZE": {
+            "description": "Max queue size for queueing songs."
+        }
+    },
+    "environments": {
+        "test": {
+            "scripts": {
+                "test-setup": "python manage.py collectstatic --noinput",
+                "test": "python manage.py test"
+            }
+        }
+    }
+}
