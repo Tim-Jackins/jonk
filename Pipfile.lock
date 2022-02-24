@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "239fc212b7b141d84f063da649e09d29b8adff69eedeb3a6ccc86762c2dffd46"
+            "sha256": "2909ccced2101989b8894fa51c300d042cbefd2203f604cc8934efe2d95d8624"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -230,9 +230,6 @@
             ],
             "version": "==6.0.2"
         },
-        "pafy": {
-            "file": "https://github.com/Tim-Jackins/pafy/zipball/develop"
-        },
         "pycparser": {
             "hashes": [
                 "sha256:8ee45429555515e1f6b185e78100aea234072576aa43ab53aefcae078162fca9",
@@ -280,10 +277,10 @@
         },
         "typing-extensions": {
             "hashes": [
-                "sha256:4ca091dea149f945ec56afb48dae714f21e8692ef22a395223bcd328961b6a0e",
-                "sha256:7f001e5ac290a0c0401508864c7ec868be4e701886d5b573a9528ed3973d9d3b"
+                "sha256:1a9462dcc3347a79b1f1c0271fbe79e844580bb598bafa1ed208b94da3cdcd42",
+                "sha256:21c85e0fe4b9a155d0799430b0ad741cdce7e359660ccbd8b530613e8df88ce2"
             ],
-            "version": "==4.0.1"
+            "version": "==4.1.1"
         },
         "yarl": {
             "hashes": [
@@ -371,5 +368,11 @@
             "version": "==2021.12.17"
         }
     },
-    "develop": {}
+    "develop": {
+        "pafy": {
+            "editable": true,
+            "git": "https://github.com/Tim-Jackins/pafy",
+            "ref": "78c67e73c53d8bc2797f45a97835e670edf38efa"
+        }
+    }
 }

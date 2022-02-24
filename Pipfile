@@ -4,13 +4,13 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pafy = {editable = true,git = "https://github.com/Tim-Jackins/pafy"}
 
 [packages]
 discord = "*"
 discord-py = {extras = ["voice"],version = "*"}
 python-dotenv = "*"
 youtube-dl = "*"
-pafy = {file = "https://github.com/Tim-Jackins/pafy/zipball/develop"}
 
 [requires]
 python_version = "3.8"

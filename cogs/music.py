@@ -91,11 +91,18 @@ class Music(commands.Cog):
 
     @commands.command(name='play', help='Play a song by url')
     async def play(self, ctx, url):
-        # todo Auto connect
+        voice_client = ctx.message.guild.voice_client
 
-        try:
+        if not ctx.message.author.voice:
+            await ctx.send("{} is not connected to a voice channel".format(ctx.message.author.name))
+            return
+        elif not voice_client:
+            channel = ctx.message.author.voice.channel
+            await channel.connect()
             voice_client = ctx.message.guild.voice_client
 
+        youtube_start = 'https://www.youtube.com/watch?v='
+        if url[:len(youtube_start)] == youtube_start:
             async with ctx.typing():
                 if voice_client.is_playing() or voice_client.is_paused():
                     # Add to queue
@@ -111,10 +118,12 @@ class Music(commands.Cog):
                     source = await self.get_source(url)
                     voice_client.play(source, after=self.handle_end_of_song)
                     await ctx.send('**Now playing:** {}'.format(pafy.new(url).title))
-
-        except Exception as e:
-            print(e)
-            await ctx.send("The bot is not connected to a voice channel.")
+        else:
+            # Do the search
+            pass
+        # except Exception as e:
+        #     print(e)
+        #     await ctx.send("The bot is not connected to a voice channel.")
 
     @commands.command(name='pause', help='Pauses the song')
     async def pause(self, ctx):
@@ -148,8 +157,8 @@ class Music(commands.Cog):
     async def skip(self, ctx):
         voice_client = ctx.message.guild.voice_client
         if voice_client.is_playing():
-            await voice_client.stop()
-            self.handle_end_of_song()
+            voice_client.stop()
+            self.handle_end_of_song('none')
         else:
             await ctx.send("The bot is not playing anything at the moment.")
 

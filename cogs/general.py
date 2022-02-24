@@ -13,10 +13,10 @@ async def join(ctx):
 @commands.command(name='leave', help='To make the bot leave the voice channel')
 async def leave(ctx):
     voice_client = ctx.message.guild.voice_client
-    if voice_client.is_connected():
+    if voice_client and voice_client.is_connected():
         await voice_client.disconnect()
     else:
-        await ctx.send("The bot is not connected to a voice channel.")
+        await ctx.send('The bot is not connected to a voice channel.')
 
 @commands.command(name='tell_me_about_yourself', help='A friendly blurb!')
 async def tell_me_about_yourself(ctx):
