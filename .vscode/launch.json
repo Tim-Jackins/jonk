@@ -8,7 +8,14 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "./app.py",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Run Discord Bot",
+            "type": "python",
+            "request": "launch",
+            "program": "./main.py",
             "console": "integratedTerminal"
         }
     ]

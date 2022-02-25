@@ -34,3 +34,11 @@ Make a .env file with:
 DISCORD_TOKEN=<your token>
 MAX_QUEUE_SIZE=50
 ```
+
+pipenv install -e git+https://github.com/explosion/spaCy#egg=spacy
+
+pipenv install --dev -e "git+https://github.com/Tim-Jackins/pafy#egg=pafy"
+
+pipenv run pip install "git+https://github.com/Tim-Jackins/pafy#egg_info=pafy"
+
+py -m pip install "discord discord.py[voice] python-dotenv youtube-dl requests"

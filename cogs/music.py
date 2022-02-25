@@ -5,6 +5,8 @@ import pafy
 import asyncio
 from queue import Queue
 import os
+import requests
+import re
 
 
 YTDL_FORMAT_OPTIONS = {
@@ -55,9 +57,6 @@ class Music(commands.Cog):
         self.qdb_lock = asyncio.Lock()
         self.song_transition_event = asyncio.Event()
 
-    def handle_end_of_song(self, error):
-        self.song_transition_event.set()
-
     async def get_source(self, url, download=False):
         if download:
             filename = await YTDLSource.from_url(url, loop=None)
@@ -71,6 +70,22 @@ class Music(commands.Cog):
             source = await discord.FFmpegOpusAudio.from_probe(i_url, **FFMPEG_OPTIONS)
 
         return source
+
+    async def get_yt_result_url(self, query):
+        search_base = 'https://www.youtube.com/results?search_query='
+        video_base = 'https://www.youtube.com/watch?v='
+
+        scrape_url = f'{search_base}{query}'
+        r = requests.get(scrape_url)
+
+        result_video_ids = re.findall(r'{"url":"\/watch?\?v=(.*?)"', r.text)
+        result_video_id = result_video_ids[0]
+        result_video_url = f'{video_base}{result_video_id}'
+
+        return result_video_url
+
+    def handle_end_of_song(self, error):
+        self.song_transition_event.set()
 
     @tasks.loop(seconds=1)
     async def next_song_checker(self):
@@ -90,7 +105,7 @@ class Music(commands.Cog):
         self.next_song_checker.start()
 
     @commands.command(name='play', help='Play a song by url')
-    async def play(self, ctx, url):
+    async def play(self, ctx, *args):
         voice_client = ctx.message.guild.voice_client
 
         if not ctx.message.author.voice:
@@ -101,8 +116,15 @@ class Music(commands.Cog):
             await channel.connect()
             voice_client = ctx.message.guild.voice_client
 
-        youtube_start = 'https://www.youtube.com/watch?v='
-        if url[:len(youtube_start)] == youtube_start:
+        try:
+            youtube_start = 'https://www.youtube.com/watch?v='
+            if args[0][:len(youtube_start)] != youtube_start:
+                # Set url to first search result
+                query = '+'.join(args)
+                url = await self.get_yt_result_url(query)
+            else:
+                url = args[0]
+
             async with ctx.typing():
                 if voice_client.is_playing() or voice_client.is_paused():
                     # Add to queue
@@ -118,12 +140,8 @@ class Music(commands.Cog):
                     source = await self.get_source(url)
                     voice_client.play(source, after=self.handle_end_of_song)
                     await ctx.send('**Now playing:** {}'.format(pafy.new(url).title))
-        else:
-            # Do the search
-            pass
-        # except Exception as e:
-        #     print(e)
-        #     await ctx.send("The bot is not connected to a voice channel.")
+        except Exception as e:
+            print(e)
 
     @commands.command(name='pause', help='Pauses the song')
     async def pause(self, ctx):
@@ -151,7 +169,7 @@ class Music(commands.Cog):
                 quote_text = f'Your queue:\n>>> {songs}'
                 await ctx.send(quote_text)
             else:
-                ctx.send("There's nothing in your queue.")
+                await ctx.send("There's nothing in your queue.")
 
     @commands.command(name='skip', help='Skips the current song')
     async def skip(self, ctx):
