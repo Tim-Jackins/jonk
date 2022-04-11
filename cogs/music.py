@@ -1,3 +1,5 @@
+import logging
+
 import discord
 from discord.ext import tasks, commands
 import youtube_dl
@@ -7,6 +9,10 @@ from queue import Queue
 import os
 import requests
 import re
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 YTDL_FORMAT_OPTIONS = {
@@ -19,17 +25,30 @@ YTDL_FORMAT_OPTIONS = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+    # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0'
 }
 
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'before_options': '-reconnect 1 -reconnect_streamed 1' \
+        ' -reconnect_delay_max 5',
     'options': '-vn',
 }
 
 youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl = youtube_dl.YoutubeDL(YTDL_FORMAT_OPTIONS)
+
+
+def is_youtube(url: str) -> bool:
+    """
+    Checks some heuristics to see if the given URL would resolve to a Youtube
+    video.
+    """
+    youtube_start: str = 'https://www.youtube.com/watch?v='
+    return len(url) > len(youtube_start) \
+        and url[:len(youtube_start)] == youtube_start
+
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
@@ -64,9 +83,14 @@ class Music(commands.Cog):
             i_url = info['formats'][0]['url']
             source = discord.FFmpegPCMAudio(executable="ffmpeg", source=filename)
         else:
-            video = pafy.new(url)
-            best = video.getbestaudio()
-            i_url = best.url
+            if is_youtube(url):
+                video = pafy.new(url)
+                best = video.getbestaudio()
+                i_url = best.url
+            else:
+                logger.info("Using non-youtube URL")
+                i_url = url
+
             source = await discord.FFmpegOpusAudio.from_probe(i_url, **FFMPEG_OPTIONS)
 
         return source
@@ -122,9 +146,13 @@ class Music(commands.Cog):
         try:
             youtube_start = 'https://www.youtube.com/watch?v='
             if args[0][:len(youtube_start)] != youtube_start:
-                # Set url to first search result
-                query = '+'.join(args)
-                url = await self.get_yt_result_url(query)
+                if args[0][:4] == 'http':
+                    # We've received a non-youtube URL
+                    url = args[0]
+                else:
+                    # Set url to first search result
+                    query = '+'.join(args)
+                    url = await self.get_yt_result_url(query)
             else:
                 url = args[0]
 
@@ -132,7 +160,8 @@ class Music(commands.Cog):
                 if voice_client.is_playing() or voice_client.is_paused():
                     # Add to queue
                     print('adding to the queue')
-                    await ctx.send('**Queueing:** {}'.format(pafy.new(url).title))
+                    if is_youtube(url):
+                        await ctx.send('**Queueing:** {}'.format(pafy.new(url).title))
 
                     queue_key = str(voice_client.guild.id)
                     async with self.qdb_lock:
@@ -142,7 +171,8 @@ class Music(commands.Cog):
                 else:
                     source = await self.get_source(url)
                     voice_client.play(source, after=self.handle_end_of_song)
-                    await ctx.send('**Now playing:** {}'.format(pafy.new(url).title))
+                    if is_youtube(url):
+                        await ctx.send('**Now playing:** {}'.format(pafy.new(url).title))
         except Exception as e:
             print(e)
 
