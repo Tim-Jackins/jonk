@@ -97,7 +97,10 @@ class Music(commands.Cog):
                     if q:
                         next_song_url = q.get()
                         source = await self.get_source(next_song_url)
-                        voice_client.play(source, after=self.handle_end_of_song)
+                        try:
+                            voice_client.play(source, after=self.handle_end_of_song)
+                        except Exception as e:
+                            print(e)
         self.song_transition_event.clear()
 
     @commands.Cog.listener()
