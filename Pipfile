@@ -4,11 +4,15 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
-pafy = {editable = true,git = "https://github.com/Tim-Jackins/pafy"}
+mypy = "*"
+pylint = "*"
+coverage = "*"
+pytest = "*"
 
 [packages]
 discord = "*"
 discord-py = {extras = ["voice"],version = "*"}
+pafy = {editable = true,git = "https://github.com/Tim-Jackins/pafy"}
 python-dotenv = "*"
 youtube-dl = "*"
 requests = "*"
