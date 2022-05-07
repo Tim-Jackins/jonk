@@ -1,31 +1,39 @@
-import asyncio
-from dotenv import load_dotenv
+"""Main file for the bot"""
+
+import logging
 import os
 
 import discord
-from discord.ext import commands,tasks
+from discord.ext import commands
+
+from cogs import CommandHandler, ErrorHandler, LoggingHandler, MusicHandler
+
+logger = logging.getLogger(__name__)
+logging.basicConfig()
+logger.setLevel(logging.DEBUG)
+
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+
+client = discord.Client()
+bot = commands.Bot(command_prefix="!")
+
+# Load all cogs
+bot.add_cog(CommandHandler(bot))
+bot.add_cog(ErrorHandler(bot))
+bot.add_cog(LoggingHandler(bot))
+bot.add_cog(MusicHandler(bot))
 
 
-# Config
-load_dotenv()
-
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-
-
-# Config
-intents = discord.Intents().all()
-client = discord.Client(intents=intents)
-bot = commands.Bot(command_prefix='!', intents=intents)
-
-
-# General commands
-from cogs import general_commands, Music
-
-for command in general_commands:
-    bot.add_command(command)
-
-bot.add_cog(Music(bot))
+@bot.event
+async def on_message(message: discord.Message):
+    """
+    Override default message processor to avoid dms
+    """
+    if isinstance(message.channel, discord.DMChannel) and ("!" in message.content):
+        await message.channel.send("Sorry no dms :wink:")
+        return
+    await bot.process_commands(message)
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
     bot.run(DISCORD_TOKEN)

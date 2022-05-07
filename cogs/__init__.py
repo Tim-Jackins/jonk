@@ -1,4 +1,4 @@
-from .general import join, leave, tell_me_about_yourself
-from .music import Music
+"""Init file for cogs"""
 
-general_commands = [join, leave, tell_me_about_yourself]
+from .general import CommandHandler, ErrorHandler, LoggingHandler
+from .music import MusicHandler
