@@ -52,11 +52,11 @@ class CommandHandler(commands.Cog):
     @commands.command(name="status", help="Get bot / server status")
     async def status(self, ctx: commands.Context):
         """Say some stats about the machine we're running on"""
-        ret_msg = f"{ctx.author.mention}\n"
-        ret_msg += f"> This guild name: {ctx.guild.name}\n"
-        ret_msg += f"> This guild id: {ctx.guild.id}\n"
-        ret_msg += f"> This channel name: {ctx.channel.name}\n"
-        ret_msg += f"> This channel id: {ctx.channel.id}\n"
+        ret_msg = f"{ctx.author.mention}\n" \
+            f"> This guild name: {ctx.guild.name}\n" \
+            f"> This guild id: {ctx.guild.id}\n" \
+            f"> This channel name: {ctx.channel.name}\n" \
+            f"> This channel id: {ctx.channel.id}\n"
         await ctx.send(ret_msg)
 
 
@@ -74,7 +74,8 @@ class ErrorHandler(commands.Cog):
         if hasattr(ctx.command, "on_error"):
             return
 
-        age_protected_error = "\x1b[0;31mERROR:\x1b[0m Sign in to confirm your age\nThis video may be inappropriate for some users."  # pylint: disable=line-too-long
+        age_protected_error = "\x1b[0;31mERROR:\x1b[0m Sign in to confirm your" \
+            " age\nThis video may be inappropriate for some users."
         ignored = commands.UserInputError
         error = getattr(error, "original", error)
 
