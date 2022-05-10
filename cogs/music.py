@@ -24,9 +24,7 @@ class MusicHandler(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        test_queue = Queue(maxsize=MAX_QUEUE_SIZE)
-        test_queue.put("https://www.youtube.com/watch?v=XRP9k9nlAfE")
-        self.qdb: Dict[str, "Queue[str]"] = {"941817356596945017": test_queue}
+        self.qdb: Dict[str, "Queue[str]"] = {}
         self.qdb_lock = asyncio.Lock()
         self.song_transition_event = asyncio.Event()
 
