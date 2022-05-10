@@ -1,223 +1,185 @@
-import logging
+"""Conatains the cog for handling music commands"""
+# pylint: disable=no-self-use
 
-import discord
-from discord.ext import tasks, commands
-import youtube_dl
-import pafy
+import logging
+from typing import Dict
 import asyncio
 from queue import Queue
 import os
-import requests
-import re
+from discord.ext import tasks, commands
+import pafy
+
+
+from .utils import is_youtube, get_source, get_yt_result_url
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-
-YTDL_FORMAT_OPTIONS = {
-    'format': 'bestaudio/best',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    # bind to ipv4 since ipv6 addresses cause issues sometimes
-    'source_address': '0.0.0.0'
-}
-
-FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1' \
-        ' -reconnect_delay_max 5',
-    'options': '-vn',
-}
-
-youtube_dl.utils.bug_reports_message = lambda: ''
-
-ytdl = youtube_dl.YoutubeDL(YTDL_FORMAT_OPTIONS)
+MAX_QUEUE_SIZE = int(os.getenv("MAX_QUEUE_SIZE"))
 
 
-def is_youtube(url: str) -> bool:
-    """
-    Checks some heuristics to see if the given URL would resolve to a Youtube
-    video.
-    """
-    youtube_start: str = 'https://www.youtube.com/watch?v='
-    return len(url) > len(youtube_start) \
-        and url[:len(youtube_start)] == youtube_start
+class MusicHandler(commands.Cog):
+    """Cog for handling music commands"""
 
-
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
-        self.data = data
-        self.title = data.get('title')
-        self.url = ""
-
-    @classmethod
-    async def from_url(cls, url, *, loop=None, stream=False):
-        loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-        if 'entries' in data:
-            # take first item from a playlist
-            data = data['entries'][0]
-        filename = data['title'] if stream else ytdl.prepare_filename(data)
-        return filename
-
-
-class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        # Queue dictionary
-        self.qdb = {}
+        test_queue = Queue(maxsize=MAX_QUEUE_SIZE)
+        test_queue.put("https://www.youtube.com/watch?v=XRP9k9nlAfE")
+        self.qdb: Dict[str, "Queue[str]"] = {"941817356596945017": test_queue}
         self.qdb_lock = asyncio.Lock()
         self.song_transition_event = asyncio.Event()
 
-    async def get_source(self, url, download=False):
-        if download:
-            filename = await YTDLSource.from_url(url, loop=None)
-            info = ytdl.extract_info(url, download=False)
-            i_url = info['formats'][0]['url']
-            source = discord.FFmpegPCMAudio(executable="ffmpeg", source=filename)
-        else:
-            if is_youtube(url):
-                video = pafy.new(url)
-                best = video.getbestaudio()
-                i_url = best.url
-            else:
-                logger.info("Using non-youtube URL")
-                i_url = url
-
-            source = await discord.FFmpegOpusAudio.from_probe(i_url, **FFMPEG_OPTIONS)
-
-        return source
-
-    async def get_yt_result_url(self, query):
-        search_base = 'https://www.youtube.com/results?search_query='
-        video_base = 'https://www.youtube.com/watch?v='
-
-        scrape_url = f'{search_base}{query}'
-        r = requests.get(scrape_url)
-
-        result_video_ids = re.findall(r'{"url":"\/watch?\?v=(.*?)"', r.text)
-        result_video_id = result_video_ids[0]
-        result_video_url = f'{video_base}{result_video_id}'
-
-        return result_video_url
-
-    def handle_end_of_song(self, error):
+    def handle_end_of_song(self, error: Exception):
+        """Syncronous handler for song transitions"""
+        if error:
+            logger.error(error)
         self.song_transition_event.set()
 
     @tasks.loop(seconds=1)
     async def next_song_checker(self):
+        """
+        Creates and plays a new source based on what's in the queue
+        """
         await self.song_transition_event.wait()
         for voice_client in self.bot.voice_clients:
             if not voice_client.is_playing():
                 async with self.qdb_lock:
-                    q = self.qdb.get(str(voice_client.guild.id))
-                    if q:
-                        next_song_url = q.get()
-                        source = await self.get_source(next_song_url)
+                    _queue = self.qdb.get(str(voice_client.guild.id))
+                    if _queue and not _queue.empty():
+                        next_song_url = _queue.get()
+                        source = await get_source(next_song_url)
                         voice_client.play(source, after=self.handle_end_of_song)
         self.song_transition_event.clear()
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.next_song_checker.start()
+        """
+        Start the song transition handler task when thhe bot starts up.
+        """
+        self.next_song_checker.start()  # pylint: disable=no-member
 
-    @commands.command(name='play', help='Play a song by url')
+    # 1 per user per 2s
+    @commands.cooldown(1, 2, commands.BucketType.user)
+    @commands.command(name="play", help="Play a song by url")
     async def play(self, ctx, *args):
+        """Play a song or radio by url / Search and play a song from text"""
         voice_client = ctx.message.guild.voice_client
 
         if not ctx.message.author.voice:
-            await ctx.send("{} is not connected to a voice channel".format(ctx.message.author.name))
+            await ctx.send(
+                f"{ctx.message.author.name} is not connected to a voice channel"
+            )
             return
-        elif not voice_client:
+
+        if not voice_client:
             channel = ctx.message.author.voice.channel
             await channel.connect()
             voice_client = ctx.message.guild.voice_client
 
-        try:
-            youtube_start = 'https://www.youtube.com/watch?v='
-            if args[0][:len(youtube_start)] != youtube_start:
-                if args[0][:4] == 'http':
-                    # We've received a non-youtube URL
-                    url = args[0]
-                else:
-                    # Set url to first search result
-                    query = '+'.join(args)
-                    url = await self.get_yt_result_url(query)
-            else:
+        youtube_start = "https://www.youtube.com/watch?v="
+        if args[0][: len(youtube_start)] != youtube_start:
+            if args[0][:4] == "http":
+                # We've received a non-youtube URL
                 url = args[0]
+            else:
+                # Set url to first search result
+                query = "+".join(args)
+                url = await get_yt_result_url(query)
+        else:
+            url = args[0]
 
-            async with ctx.typing():
-                if voice_client.is_playing() or voice_client.is_paused():
-                    # Add to queue
-                    print('adding to the queue')
-                    if is_youtube(url):
-                        await ctx.send('**Queueing:** {}'.format(pafy.new(url).title))
+        if voice_client.is_playing() or voice_client.is_paused():
+            # If bot is already playing a song add it to the queue
+            print("adding to the queue")
+            if is_youtube(url):
+                await ctx.send(f"**Queueing:** {pafy.new(url).title}")
 
-                    queue_key = str(voice_client.guild.id)
-                    async with self.qdb_lock:
-                        if not self.qdb.get(queue_key):
-                            self.qdb.update({queue_key: Queue(maxsize=int(os.getenv('MAX_QUEUE_SIZE')))})
-                        self.qdb[queue_key].put(url)
-                else:
-                    source = await self.get_source(url)
-                    voice_client.play(source, after=self.handle_end_of_song)
-                    if is_youtube(url):
-                        await ctx.send('**Now playing:** {}'.format(pafy.new(url).title))
-        except Exception as e:
-            print(e)
+            queue_key = str(voice_client.guild.id)
+            async with self.qdb_lock:
+                if not self.qdb.get(queue_key):
+                    self.qdb.update({queue_key: Queue(maxsize=MAX_QUEUE_SIZE)})
+                self.qdb[queue_key].put(url)
+        else:
+            # If nothing is playing just play the song
+            source = await get_source(url)
+            voice_client.play(source, after=self.handle_end_of_song)
+            if is_youtube(url):
+                await ctx.send(f"**Now playing:** {pafy.new(url).title}")
 
-    @commands.command(name='pause', help='Pauses the song')
+    # 1 per user per 2s
+    @commands.cooldown(1, 2, commands.BucketType.user)
+    @commands.command(name="pause", help="Pauses the song")
     async def pause(self, ctx):
+        """Pauses the song"""
         voice_client = ctx.message.guild.voice_client
         if voice_client.is_playing():
             await voice_client.pause()
         else:
             await ctx.send("The bot is not playing anything at the moment.")
 
-    @commands.command(name='resume', help='Resumes the song')
+    # 1 per user per 2s
+    @commands.cooldown(1, 2, commands.BucketType.user)
+    @commands.command(name="resume", help="Resumes the song")
     async def resume(self, ctx):
+        """Resumes the song"""
         voice_client = ctx.message.guild.voice_client
         if voice_client.is_paused():
             await voice_client.resume()
         else:
-            await ctx.send('The bot was not paused.')
+            if not voice_client.is_playing():
+                async with self.qdb_lock:
+                    _queue = self.qdb.get(str(voice_client.guild.id))
+                    if _queue and not _queue.empty():
+                        next_song_url = _queue.get()
+                        source = await get_source(next_song_url)
+                        voice_client.play(source, after=self.handle_end_of_song)
+                    else:
+                        await ctx.send("The bot was not paused.")
+            else:
+                await ctx.send("The bot was not paused.")
 
-    @commands.command(name='queue', help='Display the queue of songs')
+    @commands.command(name="queue", help="Display the queue of songs")
     async def queue(self, ctx):
-        voice_client = ctx.message.guild.voice_client
+        """Display the queue of songs for that guild's bot"""
+        guild = ctx.message.guild
         async with self.qdb_lock:
-            q = self.qdb.get(str(voice_client.guild.id))
-            if q and not q.empty():
-                songs = '\n'.join([f'{i+1}: {pafy.new(elem).title}' for i, elem in enumerate(list(q.queue))])
-                quote_text = f'Your queue:\n>>> {songs}'
+            _queue = self.qdb.get(str(guild.id))
+            if _queue and not _queue.empty():
+                songs = "\n".join(
+                    [
+                        f"{i+1}: {pafy.new(elem).title}"
+                        for i, elem in enumerate(list(_queue.queue))
+                    ]
+                )
+                quote_text = f"Your queue:\n>>> {songs}"
                 await ctx.send(quote_text)
             else:
                 await ctx.send("There's nothing in your queue.")
 
-    @commands.command(name='skip', help='Skips the current song')
+    # 1 per user per 2s
+    @commands.cooldown(1, 2, commands.BucketType.user)
+    @commands.command(name="skip", help="Skips the current song")
     async def skip(self, ctx):
+        """Skips the current song"""
         voice_client = ctx.message.guild.voice_client
         if voice_client.is_playing():
             voice_client.stop()
-            self.handle_end_of_song('none')
+            self.handle_end_of_song(None)
         else:
             await ctx.send("The bot is not playing anything at the moment.")
 
-    @commands.command(name='clear', help='Clears the queue')
+    # 1 per user per 10s
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    @commands.command(name="clear", help="Clears the queue")
     async def clear(self, ctx):
+        """Clears the queue for that guild's bot"""
         voice_client = ctx.message.guild.voice_client
         async with self.qdb_lock:
-            q = self.qdb.get(str(voice_client.guild.id))
-            if q and not q.empty():
-                with q.mutex:
-                    q.queue.clear()
-                await ctx.send('The queue is cleared')
+            _queue = self.qdb.get(str(voice_client.guild.id))
+            if _queue and not _queue.empty():
+                with _queue.mutex:
+                    _queue.queue.clear()
+                await ctx.send("The queue is cleared")
             else:
                 await ctx.send("There's nothing to clear")
