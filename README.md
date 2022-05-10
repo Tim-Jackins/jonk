@@ -33,7 +33,3 @@ make lint
 ## Contributing
 
 PRs accepted.
-
-## License
-
-MIT © Jack Timmins
