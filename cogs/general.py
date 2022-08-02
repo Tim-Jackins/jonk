@@ -105,10 +105,12 @@ class LoggingHandler(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Log every message sent to the bot"""
-        logger.info(
-            "%s, #%s, %s: %s",
-            message.guild,
-            message.channel,
-            message.author,
-            message.content,
-        )
+
+        # ONLY UNCOMMENT THIS FOR DEVELOPMENT
+        # logger.info(
+        #     "%s, #%s, %s: %s",
+        #     message.guild,
+        #     message.channel,
+        #     message.author,
+        #     message.content,
+        # )
