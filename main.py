@@ -14,11 +14,13 @@ logger.setLevel(logging.DEBUG)
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
+
 def when_mentioned(bot, msg):
     """
     A callable that implements a command prefix equivalent to being mentioned.
     """
-    return f'<@{bot.user.id}> '
+    return f"<@{bot.user.id}> "
+
 
 client = discord.Client()
 bot = commands.Bot(command_prefix=when_mentioned)
