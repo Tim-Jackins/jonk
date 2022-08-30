@@ -14,7 +14,7 @@ format:
 
 up:
 	docker build -f Dockerfile -t jonk_bot_image .
-	docker run -d --name jonk_bot jonk_bot_image
+	docker run -d --env-file .env --name jonk_bot jonk_bot_image
 
 down:
 	docker stop jonk_bot
