@@ -1,43 +1,43 @@
 ---
-image: python:3.9
-
-before_script:
-  - pip3 install pipenv
+image: python:3.8
+# before_script:
+#   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+#   - pip install docker-auto-labels
 
 stages:
   - build
   - test
   - deploy
 
+before_script:
+  - pip3 install pipenv
+  - docker info
+
+# https://github.com/fcfangcc/pylint-pydantic/issues/3
 lint:
   stage: build
   script:
-  - pipenv install --dev
-  - pipenv run pylint --fail-under 9.0 lysis
-
+    - pipenv install --dev
+    - pipenv run black --check ./main.py ./cogs
+    - pipenv run pylint --fail-under 9.0 ./main.py ./cogs
   except:
-  - master
+    - main
 
 unit:
-
   stage: test
   script:
-  - cat $ENV_FILE > .env
-  - pipenv install --dev
-  - pipenv run coverage run --source=. -m pytest tests/unit
-  - pipenv run coverage report -m
-
+    - cat $ENV_FILE > .env
+    - pipenv install --dev
+    - pipenv run coverage run --source=. -m pytest tests/unit
+    - pipenv run coverage report -m
   except:
-  - master
+    - main
 
-package:
-
-  stage: deploy
+build_image:
+  stage: build
   script:
-  - pip install twine
-  - python setup.py sdist bdist_wheel
-  - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
-
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t registry.gitlab.com/conceptual-coop/internal-projects/jonk .
+    - docker push registry.gitlab.com/conceptual-coop/internal-projects/jonk
   only:
-  - master
-...
+    - main
