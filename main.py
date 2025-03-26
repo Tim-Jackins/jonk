@@ -1,12 +1,13 @@
 """Main file for the bot"""
 
+import asyncio
 import logging
 import os
 
 import discord
 from discord.ext import commands
 
-from cogs import CommandHandler, ErrorHandler, LoggingHandler, MusicHandler
+from cogs import CommandHandler, ErrorHandler, LoggingHandler, MusicHandler, QrHandler
 
 logger = logging.getLogger(__name__)
 logging.basicConfig()
@@ -14,23 +15,23 @@ logger.setLevel(logging.DEBUG)
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-
 def when_mentioned(bot, msg):
     """
     A callable that implements a command prefix equivalent to being mentioned.
     """
     return f"<@{bot.user.id}> "
 
+intents = discord.Intents.all()
+client = discord.Client(intents=intents)
+bot = commands.Bot(intents=intents, command_prefix=when_mentioned)
 
-client = discord.Client()
-bot = commands.Bot(command_prefix=when_mentioned)
-
-# Load all cogs
-bot.add_cog(CommandHandler(bot))
-bot.add_cog(ErrorHandler(bot))
-bot.add_cog(LoggingHandler(bot))
-bot.add_cog(MusicHandler(bot))
-
+async def load_cogs():
+    """Load all cogs asynchronously."""
+    await bot.add_cog(CommandHandler(bot))
+    await bot.add_cog(ErrorHandler(bot))
+    await bot.add_cog(LoggingHandler(bot))
+    # await bot.add_cog(MusicHandler(bot))
+    await bot.add_cog(QrHandler(bot))
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -42,6 +43,10 @@ async def on_message(message: discord.Message):
         return
     await bot.process_commands(message)
 
+async def main():
+    async with bot:
+        await load_cogs()
+        await bot.start(DISCORD_TOKEN)
 
 if __name__ == "__main__":
-    bot.run(DISCORD_TOKEN)
+    asyncio.run(main())

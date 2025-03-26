@@ -1,14 +1,13 @@
-FROM python:3.8
-
-WORKDIR /app
-COPY . /app
+FROM python:3.12
 
 # RUN apt-get install ffmpeg
 RUN apt-get update -y
 RUN apt-get install -y ffmpeg
 
-RUN pip install pipenv==2018.11.26
-RUN pipenv install --deploy --system
-RUN pip install git+https://github.com/Tim-Jackins/pafy#egg=pafy
+COPY ./requirements.txt ./requirements.txt
+RUN pip install -r ./requirements.txt
 
-CMD ["python3", "main.py"]
+COPY ./main.py ./main.py
+COPY ./cogs ./cogs
+
+CMD ["python", "main.py"]

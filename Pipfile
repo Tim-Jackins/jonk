@@ -13,10 +13,12 @@ black = "*"
 [packages]
 discord = "*"
 discord-py = {extras = ["voice"],version = "*"}
-pafy = {editable = true,git = "https://github.com/Tim-Jackins/pafy"}
 python-dotenv = "*"
 youtube-dl = "*"
 requests = "*"
+pafy = "*"
+amzqr = "*"
+numpy = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.11"
