@@ -11,7 +11,23 @@ from cogs import CommandHandler, ErrorHandler, LoggingHandler, MusicHandler, QrH
 
 logger = logging.getLogger(__name__)
 logging.basicConfig()
-logger.setLevel(logging.DEBUG)
+match os.getenv("LOG_LEVEL"):
+    case "CRITICAL":
+        logger.setLevel(logging.CRITICAL)
+    case "FATAL":
+        logger.setLevel(logging.FATAL)
+    case "ERROR":
+        logger.setLevel(logging.ERROR)
+    case "WARNING":
+        logger.setLevel(logging.WARNING)
+    case "WARN":
+        logger.setLevel(logging.WARN)
+    case "INFO":
+        logger.setLevel(logging.INFO)
+    case "DEBUG":
+        logger.setLevel(logging.DEBUG)
+    case _:
+        raise f"{os.getenv('LOG_LEVEL')} is invalid"
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 

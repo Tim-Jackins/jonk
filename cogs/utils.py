@@ -7,9 +7,10 @@ import youtube_dl
 import discord
 import requests
 import pafy
+import os
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(os.getenv('LOG_LEVEL'))
 
 
 YTDL_FORMAT_OPTIONS = {

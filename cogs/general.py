@@ -1,13 +1,13 @@
 """Contains general cogs for basic tasks, logging, and errors"""
 # pylint: disable=no-self-use
-
+import os
 import logging
 import discord
 from discord.ext import commands
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(os.getenv('LOG_LEVEL'))
 
 
 class CommandHandler(commands.Cog):

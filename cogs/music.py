@@ -14,7 +14,7 @@ from .utils import is_youtube, get_source, get_yt_result_url
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(os.getenv('LOG_LEVEL'))
 
 MAX_QUEUE_SIZE = int(os.getenv("MAX_QUEUE_SIZE"))
 
